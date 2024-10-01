@@ -24,6 +24,7 @@ REQUIREMENTS = [
     "python-dotenv",
     "tqdm",
     "matplotlib>=3.3",
+    "xarray",
 ]
 
 REQUIREMENTS_NOTEBOOKS = [
