@@ -1,5 +1,10 @@
 import pandas as pd
 import xarray as xr
+import logging
+
+import numpy as np
+
+LOGGER = logging.getLogger(__name__)
 
 
 def check_data(predictor_list, data):
@@ -11,7 +16,28 @@ def check_data(predictor_list, data):
 
 
     """
-    pass
+    if not isinstance(data, pd.DataFrame):
+        LOGGER.error(
+            "Predictor data must be in the form of a Pandas DataFrame"
+        )
+        raise TypeError(
+            "Predictor data must be in the form of a Pandas DataFrame"    
+        )
+    
+    if not all(predictors in data.columns for predictors in predictor_list):
+        LOGGER.error(
+            f"Incomplete predictor data. {data.columns} do not match {predictor_list}"
+        )
+        raise ValueError(
+            f"Incomplete predictor data. {data.columns} do not match {predictor_list}"
+        )
+    if len(data.columns) == len(predictor_list):
+        return data
+    for col in data.columns:
+        if col not in predictor_list:
+            data.drop(columns = [col], inplace = True)
+    return data
+
 
 def cut_data_points_where_all_equal(data_base, data_forest_change):
     """
@@ -19,10 +45,14 @@ def cut_data_points_where_all_equal(data_base, data_forest_change):
 
     I.e. all datapoints which have same exact values for base and forest
 
-    
+
     """
+    diff = data_base.compare(data_forest_change)
+    print(diff.index)
+    print(data_base.loc[diff.index])
+    print(data_forest_change.loc[diff.index])
+    return data_base.loc[diff.index], data_forest_change.loc[diff.index]
+
 
 def prepare_datacolumn_from_netcdf():
     pass
-
-def 
