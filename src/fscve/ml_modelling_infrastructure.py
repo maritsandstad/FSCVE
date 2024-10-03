@@ -71,7 +71,7 @@ class MLMODELINTERFACE:
             LOGGER.error(f"Model {self.model_name} has not been trained yet, no predictions can be made")
             raise UntrainedModelError(
                 f"Model {self.model_name} has not been trained yet. Hence no prediction can be made"    
-        )
+            )
         if self.scaler:
             Xtest = self.scaler.transform(Xtest)
         return self.current_regressor.predict(Xtest)
