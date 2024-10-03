@@ -25,6 +25,7 @@ REQUIREMENTS = [
     "tqdm",
     "matplotlib>=3.3",
     "xarray",
+    "sklearn"
 ]
 
 REQUIREMENTS_NOTEBOOKS = [

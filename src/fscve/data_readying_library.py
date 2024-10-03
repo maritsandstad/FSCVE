@@ -53,6 +53,14 @@ def cut_data_points_where_all_equal(data_base, data_forest_change):
     print(data_forest_change.loc[diff.index])
     return data_base.loc[diff.index], data_forest_change.loc[diff.index]
 
+def fill_zeros(result, data_base):
+    complete = result.copy()
+    for index in data_base.index:
+        if index not in complete.index:
+            complete.loc[index] = np.zeros(len(complete.columns))
+    return complete
+
+
 
 def prepare_datacolumn_from_netcdf():
     pass
