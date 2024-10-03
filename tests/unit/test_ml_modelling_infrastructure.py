@@ -12,7 +12,7 @@ def test_mlmodelinterface():
     with pytest.raises(ml_modelling_infrastructure.UntrainedModelError, match = f"Model {mlinterface.model_name} has not been trained yet. Hence no prediction can be made"):
         mlinterface.evaluate_model(Xtrain, ytrain)
 
-    mlinterface.train_new_model_instance(Xtrain, ytrain)
+    mlinterface.train_new_model_instance(Xtrain, ytrain, scale_x_dat = False)
 
     Xtest =  pd.DataFrame(data = [[51.5,-0.1,0,0],[48.9,2.3,0,0], [38.7,-9.1,0,0]], columns = ["LAT", "LON", "agb", "conifer"], index = ["Paris", "Lisbon", "London"])
     ytest = [20, 19, 24]
@@ -24,6 +24,6 @@ def test_mlmodelinterface():
     assert msetr < msets
     assert rmsetr < rmsets
     assert r2tr > r2ts
-    other_regressor = mlinterface.train_new_model_instance(Xtest, ytest, options = {"fit_intercept": False}, update_current=False)
-    ytest_pred2 = other_regressor.predict(Xtest)
+    scale_x, other_regressor = mlinterface.train_new_model_instance(Xtest, ytest, options = {"fit_intercept": True}, update_current=False)
+    ytest_pred2 = other_regressor.predict(scale_x.transform(Xtest))
     assert np.sqrt(metrics.mean_squared_error(ytest_pred2, ytest)) < rmsets

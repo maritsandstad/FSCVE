@@ -8,15 +8,14 @@ from sklearn.preprocessing import StandardScaler
 
 LOGGER = logging.getLogger(__name__)
 
+def scale_x(X_train):
+    scaler = StandardScaler()
+    scaler.fit(X_train)
+    return scaler, scaler.transform(X_train)
+
 def setup_and_make_ready_dataset(X, y, scale_y = True):
     X_train,X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 100)
-    scaler = StandardScaler()  
-    # Don't cheat - fit only on training data
-    scaler.fit(X_train)
-    #print(X_train)
-    X_train = scaler.transform(X_train)
-    #print(X_train)
-
+    scaler, X_train = scale_x(X_train)
     # Also scale targets?
     if scale_y: 
         scalery = StandardScaler()
@@ -46,16 +45,25 @@ class MLMODELINTERFACE:
     def __init__(self, model):
         self.model_name = model
         self.current_regressor = None
+        self.scaler = None
 
-    def train_new_model_instance(self, Xtrain, ytrain, options= None, update_current= True):
+    def train_new_model_instance(self, Xtrain, ytrain, options= None, update_current= True, scale_x_dat = True):
         if options: 
             regressor = self.model_name(**options)
         else: 
             regressor = self.model_name()
+
+        if scale_x_dat:
+            scaler, Xtrain = scale_x(Xtrain)
+
         regressor.fit(Xtrain, ytrain)
 
         if update_current:
             self.current_regressor = regressor
+            if scale_x_dat:
+                self.scaler = scaler
+        if scale_x_dat:
+            return scaler,regressor
         return regressor
     
     def predict_with_current(self, Xtest):
@@ -64,8 +72,9 @@ class MLMODELINTERFACE:
             raise UntrainedModelError(
                 f"Model {self.model_name} has not been trained yet. Hence no prediction can be made"    
         )
-        else:
-            return self.current_regressor.predict(Xtest)
+        if self.scaler:
+            Xtest = self.scaler.transform(Xtest)
+        return self.current_regressor.predict(Xtest)
 
     def evaluate_model(self, Xtest, ytest):
         ytest_pred = self.predict_with_current(Xtest)
