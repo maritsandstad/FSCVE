@@ -26,4 +26,4 @@ ignore-docstrings=yes
 ignore-imports=yes
 
 [FORMAT]
-good-names=i,j,k,nt,yr,it,dt,df,ds
+good-names=i,j,k,nt,yr,it,dt,df,ds,Xtrain,Xtest,r2,y,X,n

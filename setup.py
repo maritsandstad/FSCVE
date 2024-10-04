@@ -26,7 +26,7 @@ REQUIREMENTS = [
     "matplotlib>=3.3",
     "xarray",
     "sklearn",
-    "netcdf4"
+    "netcdf4",
 ]
 
 REQUIREMENTS_NOTEBOOKS = [

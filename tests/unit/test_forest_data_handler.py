@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 import pytest
 
 from fscve import forest_data_handler

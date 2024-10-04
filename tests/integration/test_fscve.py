@@ -1,5 +1,4 @@
 import pandas as pd
-from sklearn import linear_model
 from sklearn.linear_model import LinearRegression
 
 from fscve import FSCVE, ml_modelling_infrastructure
@@ -25,7 +24,7 @@ def test_fscve():
     fscve_instance = FSCVE(
         ml_linear,
         predictor_list=["LAT", "LON", "agb", "conifer"],
-        varible_list=["July temp"],
+        variable_list=["July temp"],
     )
     Xforest_base = pd.DataFrame(
         data=[[51.5, -0.1, 0, 0], [48.9, 2.3, 0, 0], [38.7, -9.1, 0, 0]],
