@@ -5,8 +5,8 @@ Functionality to read in Forest data on lat lon format, and adding era5land pred
 import logging
 import os
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from .get_data_from_era5land import get_data_for_lat_lon_vector
@@ -156,7 +156,8 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
         )
     return df_forest
 
-def make_full_grid(resolution_file= "era5_land"):
+
+def make_full_grid(resolution_file="era5_land"):
     """
     Make a full latxlon grid of a resolution, either era5_land or from netcdf file
 
@@ -169,9 +170,17 @@ def make_full_grid(resolution_file= "era5_land"):
 
     Returns
     -------
-    pd.DataFrame
-        Dataframe with entries for each combination of lat and lon
-        in the extent and resolution in each row
+    list
+        Containing first a Dataframe with entries for each combination
+        of lat and lon in the extent and resolution in each row, second
+        and third the number of digits of decimal precision needed
+        for this resolution in latitudes or longitudes. The DataFrame
+        is already adjusted to this precision, but the same precision
+        is needed when other data is to be matched into the same DataFrame
+        otherwise merging and transforming to xarray won't work.
+        Fourth and fifth are np.ndarrays with the latitudes and longitudes
+        of the DataFrame. These will be used to initialise coordinates
+        when transforming to an xarray Dataset.
     """
     if resolution_file == "era5_land":
         max_lat = 90
@@ -191,15 +200,17 @@ def make_full_grid(resolution_file= "era5_land"):
 
     lats = np.linspace(min_lat, max_lat, num=num_lat)
     lons = np.linspace(min_lon, max_lon, num=num_lon)
-    cross = [(A,B) for A in lats for B in lons]
+    cross = [(A, B) for A in lats for B in lons]
     cross = np.array(cross)
-    full_grid = pd.DataFrame({
-        'lat': cross[:,0], 
-        'lon': cross[:,1]
-        })
-    full_grid = full_grid.sort_values(by=['lat','lon'])
-    full_grid = full_grid.reset_index(drop=True)
-    return full_grid, lats, lons
+    full_grid = pd.DataFrame({"lat": cross[:, 0], "lon": cross[:, 1]})
+    lat_round = int(np.ceil(np.log10(len(lats) - 1) / (lats[-1] - lats[0])))
+    lon_round = int(np.ceil(np.log10(len(lons) / (lons[-1] - lons[0]))))
+    full_grid = full_grid.sort_values(by=["lat", "lon"])
+    full_grid = full_grid.reset_index(drop=True).round(
+        {"lat": lat_round, "lon": lon_round}
+    )
+    return full_grid, lat_round, lon_round, lats, lons
+
 
 def rename_lat_lon(df_wrong):
     """
@@ -210,7 +221,7 @@ def rename_lat_lon(df_wrong):
     df_wrong : pd.DataFrame
         Dataframe in which lat and lon is to be renamed
         First and best reasonable match will be used
-    
+
     Returns
     -------
     pd.DataFrame
@@ -219,44 +230,55 @@ def rename_lat_lon(df_wrong):
     if "lat" not in df_wrong.columns:
         for col in df_wrong.columns:
             if col.lower() in ["lat", "lati", "latitude"]:
-                df_wrong.rename(columns={col:"lat"}, inplace=True)
+                df_wrong.rename(columns={col: "lat"}, inplace=True)
                 break
     if "lon" not in df_wrong.columns:
         for col in df_wrong.columns:
             if col.lower() in ["lon", "long", "longitude"]:
-                df_wrong.rename(columns={col:"lon"}, inplace=True)
-                break 
+                df_wrong.rename(columns={col: "lon"}, inplace=True)
+                break
     return df_wrong
 
-def get_indices_from_lat_lon(df_sparse, outlats, outlons):
-    print(len(outlats))
-    print(len(outlons))
-    lat_spacing = int(len(outlats)-1)/(outlats[-1] - outlats[0])
-    lon_spacing = int(len(outlons)/(outlons[-1] - outlons[0]))
-    df_sparse["calc_index"] = ((df_sparse["lat"] - outlats[0])*lat_spacing)*len(outlons) + ((df_sparse["lon"] - outlons[0])*lon_spacing).astype(int)
-    df_sparse.set_index("calc_index", inplace = True)
-    #df_sparse.drop(columns = ["lat", "lon"], inplace = True)
-    return df_sparse.sort_values(by="calc_index")
 
-def make_sparse_forest_df_xarray(df_sparse, resolution_file= "era5_land"):
+def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
+    """
+    Make a sparse forest DataFrame into a fully filled in xarray
 
-    full_grid, outlats, outlons = make_full_grid(resolution_file)
-    df_sparse_w_index = get_indices_from_lat_lon(rename_lat_lon(df_sparse), outlats, outlons)
-    print(df_sparse_w_index.index.max())
-    print(df_sparse_w_index.index.min())
-    print(df_sparse_w_index.index.has_duplicates)
-    ids = df_sparse_w_index.index
-    print(df_sparse_w_index[ids.isin(ids[ids.duplicated()])])#df_sparse_w_index.index.duplicated])
-    data_onto_full_grid = pd.merge(full_grid, df_sparse_w_index, how= "left", left_index=True, right_index=True)#how='outer', on = ["lat", "lon"])
-    print(data_onto_full_grid.index.max())
-    print(data_onto_full_grid.index.min())
+    Parameters
+    ----------
+    df_sparse : pd.DataFrame
+        Dataset with longitude, latitude and data output columns, can be
+        predicted climate variables, forest coverage or something else
+    resolution_file : str
+        Directions for full grid resolution. Default is era5_land and if
+        this is sent, an era5_land 0.1 degree global coverage resolution
+        will be used. Otherwise the path for a netcdf file with the
+        expected resolution is expected
+
+    Returns
+    -------
+    xr.Dataset
+        With the data from df_sparse on the lat-lon gridpoints where it has
+        data, and zeros otherwise
+    """
+    full_grid, lat_round, lon_round, outlats, outlons = make_full_grid(resolution_file)
+    df_sparse_w_index = rename_lat_lon(df_sparse).round(
+        {"lat": lat_round, "lon": lon_round}
+    )
+    data_onto_full_grid = pd.merge(
+        full_grid, df_sparse_w_index, how="left", on=["lat", "lon"]
+    )
     variables = {}
     coords = {"lat": outlats, "lon": outlons}
     for col in data_onto_full_grid.columns:
         if col in ["lat", "lon"]:
             continue
-        target_variable_2D = data_onto_full_grid[col].values.reshape((len(outlats),len(outlons)))
-        target_variable_xr = xr.DataArray(target_variable_2D, coords=[('lat', outlats),('lon', outlons)])
+        target_variable_2d = data_onto_full_grid[col].values.reshape(
+            (len(outlats), len(outlons))
+        )
+        target_variable_xr = xr.DataArray(
+            target_variable_2d, coords=[("lat", outlats), ("lon", outlons)]
+        )
         target_variable_xr = target_variable_xr.rename(col)
         variables[col] = target_variable_xr
 
