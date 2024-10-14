@@ -6,6 +6,7 @@ import logging
 import os
 
 import pandas as pd
+import numpy as np
 import xarray as xr
 
 from .get_data_from_era5land import get_data_for_lat_lon_vector
@@ -16,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 def take_forest_dataset_and_convert_to_pd(filepath, variable_list):
     """
     Take forest dataset from netcdf file and convert to dataFrame
+    Datapoints with no forest data will be taken out of dataFrame
 
     Parameters
     ----------
@@ -137,6 +139,8 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
     """
     df_forest = take_forest_dataset_and_convert_to_pd(filepath, forest_variables)
     variables_missing = []
+    if "lat" not in df_forest.columns or "lon" not in df_forest.columns:
+        df_forest = rename_lat_lon(df_forest)
     for variable in full_variable_list:
         if variable not in df_forest.columns:
             rename, to_rename = variable_mapping(variable, df_forest.columns)
@@ -151,3 +155,110 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
             df_forest["LON"].values,
         )
     return df_forest
+
+def make_full_grid(resolution_file= "era5_land"):
+    """
+    Make a full latxlon grid of a resolution, either era5_land or from netcdf file
+
+    Parameters
+    ----------
+    resolution_file : str
+        Path to file with netcdf data on wanted resolution/extent
+        A regular lat-lon grid will be assumed
+        If not sent a global era5_land resolution will be used
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with entries for each combination of lat and lon
+        in the extent and resolution in each row
+    """
+    if resolution_file == "era5_land":
+        max_lat = 90
+        min_lat = -90
+        num_lat = 1801
+        max_lon = 359.9
+        min_lon = 0
+        num_lon = 3600
+    else:
+        ds_grid = xr.open_dataset(resolution_file)
+        max_lat = ds_grid["lat"].max()
+        min_lat = ds_grid["lat"].min()
+        num_lat = len(ds_grid["lat"])
+        max_lon = ds_grid["lon"].max()
+        min_lon = ds_grid["lon"].min()
+        num_lon = len(ds_grid["lon"])
+
+    lats = np.linspace(min_lat, max_lat, num=num_lat)
+    lons = np.linspace(min_lon, max_lon, num=num_lon)
+    cross = [(A,B) for A in lats for B in lons]
+    cross = np.array(cross)
+    full_grid = pd.DataFrame({
+        'lat': cross[:,0], 
+        'lon': cross[:,1]
+        })
+    full_grid = full_grid.sort_values(by=['lat','lon'])
+    full_grid = full_grid.reset_index(drop=True)
+    return full_grid, lats, lons
+
+def rename_lat_lon(df_wrong):
+    """
+    Rename lat and lon with different names in dataframe
+
+    Parameters
+    ----------
+    df_wrong : pd.DataFrame
+        Dataframe in which lat and lon is to be renamed
+        First and best reasonable match will be used
+    
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with renamed lat and lon if suitable alternatives exist
+    """
+    if "lat" not in df_wrong.columns:
+        for col in df_wrong.columns:
+            if col.lower() in ["lat", "lati", "latitude"]:
+                df_wrong.rename(columns={col:"lat"}, inplace=True)
+                break
+    if "lon" not in df_wrong.columns:
+        for col in df_wrong.columns:
+            if col.lower() in ["lon", "long", "longitude"]:
+                df_wrong.rename(columns={col:"lon"}, inplace=True)
+                break 
+    return df_wrong
+
+def get_indices_from_lat_lon(df_sparse, outlats, outlons):
+    print(len(outlats))
+    print(len(outlons))
+    lat_spacing = int(len(outlats)-1)/(outlats[-1] - outlats[0])
+    lon_spacing = int(len(outlons)/(outlons[-1] - outlons[0]))
+    df_sparse["calc_index"] = ((df_sparse["lat"] - outlats[0])*lat_spacing)*len(outlons) + ((df_sparse["lon"] - outlons[0])*lon_spacing).astype(int)
+    df_sparse.set_index("calc_index", inplace = True)
+    #df_sparse.drop(columns = ["lat", "lon"], inplace = True)
+    return df_sparse.sort_values(by="calc_index")
+
+def make_sparse_forest_df_xarray(df_sparse, resolution_file= "era5_land"):
+
+    full_grid, outlats, outlons = make_full_grid(resolution_file)
+    df_sparse_w_index = get_indices_from_lat_lon(rename_lat_lon(df_sparse), outlats, outlons)
+    print(df_sparse_w_index.index.max())
+    print(df_sparse_w_index.index.min())
+    print(df_sparse_w_index.index.has_duplicates)
+    ids = df_sparse_w_index.index
+    print(df_sparse_w_index[ids.isin(ids[ids.duplicated()])])#df_sparse_w_index.index.duplicated])
+    data_onto_full_grid = pd.merge(full_grid, df_sparse_w_index, how= "left", left_index=True, right_index=True)#how='outer', on = ["lat", "lon"])
+    print(data_onto_full_grid.index.max())
+    print(data_onto_full_grid.index.min())
+    variables = {}
+    coords = {"lat": outlats, "lon": outlons}
+    for col in data_onto_full_grid.columns:
+        if col in ["lat", "lon"]:
+            continue
+        target_variable_2D = data_onto_full_grid[col].values.reshape((len(outlats),len(outlons)))
+        target_variable_xr = xr.DataArray(target_variable_2D, coords=[('lat', outlats),('lon', outlons)])
+        target_variable_xr = target_variable_xr.rename(col)
+        variables[col] = target_variable_xr
+
+    data_ds = xr.Dataset(data_vars=variables, coords=coords)
+    return data_ds.fillna(0)
