@@ -151,8 +151,8 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
     for variable in variables_missing:
         df_forest[variable] = get_data_for_lat_lon_vector(
             variable_mapping_era5(variable),
-            df_forest["LAT"].values,
-            df_forest["LON"].values,
+            df_forest[df_forest.columns[df_forest.columns.str.lower() == "latitude"][0]].values,
+            df_forest[df_forest.columns[df_forest.columns.str.lower() == "longitude"][0]].values
         )
     return df_forest
 
