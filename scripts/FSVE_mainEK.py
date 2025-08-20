@@ -63,12 +63,23 @@ def apply_agb_change(df, change):
 # --------------------------------
 def plot_diff_map(base_df, changed_df, change_short, change_long=None):
     diff = emulator.predict_and_get_variable_diff(base_df, changed_df)
-    print("predicted")
+    
+    # Prepare DataFrame for plotting
     plot_df = base_df[["LATITUDE", "LONGITUDE"]].copy()
     plot_df["mean_diff"] = diff
+    plot_df = plot_df.rename(columns={
+    "LATITUDE": "lat",
+    "LONGITUDE": "lon"
+    })
+    # print(plot_df)
     ds = forest_data_handler.make_sparse_forest_df_xarray(plot_df)
-    print("sparsened")
+    # print(ds)
 
+    # Ensure the subdirectory exists
+    plot_dir = os.path.join(os.path.dirname(__file__), "plots")
+    os.makedirs(plot_dir, exist_ok=True)
+
+    # Plot
     fig = plt.figure(figsize=(10, 5))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ds["mean_diff"].plot(
@@ -81,7 +92,11 @@ def plot_diff_map(base_df, changed_df, change_short, change_long=None):
     ax.coastlines()
     ax.set_extent([-10, 30, 35, 70])
     ax.set_title(f"Predicted change in mean when {change_long or change_short}")
-    plt.savefig(f"prediction_change_{change_short}.png")
+
+    # Save plot in the subdirectory
+    filename = f"prediction_change_{change_short}.png"
+    filepath = os.path.join(plot_dir, filename)
+    plt.savefig(filepath)
     plt.clf()
 
 # --------------------------------
