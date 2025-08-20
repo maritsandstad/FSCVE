@@ -11,6 +11,7 @@ AUTHORS = [
     ("Ragnhild Bieltvedt Skeie", "r.b.skeie@cicero.oslo.no"),
     ("Ane Nordlie Johansen", "ane.nordlie.johansen@cicero.oslo.no"),
     ("Benjamin Sanderson", "benjamin.sanderson@cicero.oslo.no"),
+    ("Erik Kusch", "erik.kusch@cicero.oslo.no")
 ]
 URL = "https://github.com/ciceroOslo/fscve"
 
@@ -25,8 +26,9 @@ REQUIREMENTS = [
     "tqdm",
     "matplotlib>=3.3",
     "xarray",
-    "sklearn",
+    "scikit-learn",
     "netcdf4",
+    "cartopy",
 ]
 
 REQUIREMENTS_NOTEBOOKS = [

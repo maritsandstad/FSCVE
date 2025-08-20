@@ -151,8 +151,8 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
     for variable in variables_missing:
         df_forest[variable] = get_data_for_lat_lon_vector(
             variable_mapping_era5(variable),
-            df_forest["LAT"].values,
-            df_forest["LON"].values,
+            df_forest[df_forest.columns[df_forest.columns.str.lower() == "latitude"][0]].values,
+            df_forest[df_forest.columns[df_forest.columns.str.lower() == "longitude"][0]].values
         )
     return df_forest
 
@@ -242,45 +242,45 @@ def rename_lat_lon(df_wrong):
 
 def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
     """
-    Make a sparse forest DataFrame into a fully filled in xarray
+    Make a sparse forest DataFrame into a fully filled-in xarray,
+    handling duplicate lat/lon points and ensuring grid matches expected resolution.
 
     Parameters
     ----------
     df_sparse : pd.DataFrame
-        Dataset with longitude, latitude and data output columns, can be
-        predicted climate variables, forest coverage or something else
+        Dataset with latitude, longitude and data columns (e.g., predicted variables, forest coverage).
     resolution_file : str
-        Directions for full grid resolution. Default is era5_land and if
-        this is sent, an era5_land 0.1 degree global coverage resolution
-        will be used. Otherwise the path for a netcdf file with the
-        expected resolution is expected
+        Directions for full grid resolution. Default is 'era5_land' (0.1° global coverage).
+        Otherwise, a path to a NetCDF file with expected resolution can be used.
 
     Returns
     -------
     xr.Dataset
-        With the data from df_sparse on the lat-lon gridpoints where it has
-        data, and zeros otherwise
+        Dataset with data on lat-lon grid, zeros where no data exists.
     """
+    # Build full target grid
     full_grid, lat_round, lon_round, outlats, outlons = make_full_grid(resolution_file)
-    df_sparse_w_index = rename_lat_lon(df_sparse).round(
-        {"lat": lat_round, "lon": lon_round}
-    )
-    data_onto_full_grid = pd.merge(
-        full_grid, df_sparse_w_index, how="left", on=["lat", "lon"]
-    )
+
+    # Round lat/lon in sparse df to match target grid
+    df_sparse_w_index = rename_lat_lon(df_sparse).round({"lat": lat_round, "lon": lon_round})
+
+    # Aggregate duplicate lat/lon points by taking mean (or keep first)
+    df_sparse_w_index = df_sparse_w_index.groupby(["lat", "lon"], as_index=False).mean()
+
+    # Merge onto full grid
+    data_onto_full_grid = pd.merge(full_grid, df_sparse_w_index, how="left", on=["lat", "lon"])
+
+    # Convert each column to 2D xarray
     variables = {}
     coords = {"lat": outlats, "lon": outlons}
     for col in data_onto_full_grid.columns:
         if col in ["lat", "lon"]:
             continue
-        target_variable_2d = data_onto_full_grid[col].values.reshape(
-            (len(outlats), len(outlons))
-        )
-        target_variable_xr = xr.DataArray(
-            target_variable_2d, coords=[("lat", outlats), ("lon", outlons)]
-        )
+        target_variable_2d = data_onto_full_grid[col].values.reshape(len(outlats), len(outlons))
+        target_variable_xr = xr.DataArray(target_variable_2d, coords=[("lat", outlats), ("lon", outlons)])
         target_variable_xr = target_variable_xr.rename(col)
         variables[col] = target_variable_xr
 
     data_ds = xr.Dataset(data_vars=variables, coords=coords)
     return data_ds.fillna(0)
+
