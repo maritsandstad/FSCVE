@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 # Extend path to include src folder
 sys.path.append(os.path.join(os.path.dirname(__file__), "../", "src"))
@@ -25,6 +26,7 @@ args = parser.parse_args()
 # Load and clean training data
 # --------------------------------
 training_data = pd.read_csv(args.training_data_path)
+
 required_columns = ["LATITUDE", "LONGITUDE", "ELEVATION", "AGB_ESA", "mean"]
 training_data = training_data[required_columns].dropna()
 
@@ -113,12 +115,56 @@ def prepare_emulator_df(df):
 # --------------------------------
 # Run prediction change simulations
 # --------------------------------
+# def plot_vanilla(ds, name, plot_name):
+#     ds = forest_data_handler.make_sparse_forest_df_xarray(ds)
+#     # Plotting
+#     fig = plt.figure(figsize=(10, 5))
+#     ax = plt.axes(projection=ccrs.PlateCarree())
+#     ds[name].plot(
+#         ax=ax, transform=ccrs.PlateCarree(), cmap="bwr", vmin=-3, vmax=3
+#     )
+#     ax.coastlines()
+#     ax.set_extent([-10, 30, 35, 70])
+#     ax.set_title(f"{plot_name}")
+#     plt.savefig(f"temp_change_{plot_name}.png")
+#     plt.clf()
+
+# plot_vanilla(map_data, "mean", "base")
+
+
+# def plot_agb_esa_scatter(df, save_path="agb_esa_scatter.png"):
+#     fig = plt.figure(figsize=(10, 6))
+#     ax = plt.axes(projection=ccrs.PlateCarree())
+    
+#     # Add map features
+#     ax.coastlines()
+#     ax.add_feature(cfeature.BORDERS, linestyle=":")
+#     ax.add_feature(cfeature.LAND, facecolor='lightgray')
+#     ax.add_feature(cfeature.OCEAN, facecolor='lightblue')
+
+#     # Plot AGB_ESA values
+#     sc = ax.scatter(
+#         df["LONGITUDE"], df["LATITUDE"],
+#         c=df["AGB_ESA"], cmap="YlGn", s=10, alpha=0.8,
+#         transform=ccrs.PlateCarree()
+#     )
+    
+#     # Add colorbar and title
+#     cbar = plt.colorbar(sc, ax=ax, orientation='vertical', shrink=0.6, pad=0.05)
+#     cbar.set_label("AGB_ESA")
+#     ax.set_title("AGB_ESA Values Across Locations")
+
+#     # Save plot
+#     plt.savefig(save_path, dpi=300, bbox_inches="tight")
+#     plt.close(fig)
+# plot_agb_esa_scatter(map_data[["LATITUDE", "LONGITUDE", "AGB_ESA"]])
+
 for change in ["halved", "doubled", "set_to_zero"]:
     print(change)
     changed_map = apply_agb_change(map_data, change)
 
     base_emul_df = prepare_emulator_df(map_data)
     changed_emul_df = prepare_emulator_df(changed_map)
-
+    # plot_vanilla(changed_map, "mean", f"Changes agb {change}")
     plot_diff_map(base_emul_df, changed_emul_df, change, f"AGB_ESA is {change.replace('_', ' ')}")
 
