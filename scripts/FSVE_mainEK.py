@@ -46,6 +46,7 @@ emulator = FSCVE(ml_model, list(X.columns), ["mean"])
 # Strip Back Data just to Predictors so we can use these for predictions
 # --------------------------------
 map_data = training_data
+map_data_unique = map_data.drop_duplicates(subset=['LATITUDE', 'LONGITUDE'])
 
 # --------------------------------
 # Define change scenarios
@@ -161,6 +162,7 @@ def prepare_emulator_df(df):
 
 for change in ["halved", "doubled", "set_to_zero"]:
     print(change)
+    print(map_data)
     changed_map = apply_agb_change(map_data, change)
 
     base_emul_df = prepare_emulator_df(map_data)
