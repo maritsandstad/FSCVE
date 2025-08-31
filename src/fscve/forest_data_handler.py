@@ -3,7 +3,7 @@ Functionality to read in Forest data on lat lon format, and adding era5land pred
 """
 
 import logging
-import os, sys
+import os
 
 import numpy as np
 import pandas as pd
@@ -115,7 +115,7 @@ def variable_mapping_era5(variable):
         return "T2M"
     if variable.upper() in ["PR", "RSDS", "RLDS"]:
         return f"{variable.upper()}-ERA"
-    if variable.starts_with("skin_temperature"):
+    if variable.startswith("skin_temperature"):
         return "TS-ERA"
     return variable.upper()
 
@@ -158,7 +158,10 @@ def add_variables_to_forest_dataset(filepath, full_variable_list, forest_variabl
         )
     return df_forest
 
-def add_timeseriesdata_to_forest_dataset(filepath, full_variable_list, forest_variables, drop_data= None, rename_dict = None):
+
+def add_timeseriesdata_to_forest_dataset(
+    filepath, full_variable_list, forest_variables, drop_data=None, rename_dict=None
+):  # pylint: disable=too-many-branches,too-many-locals
     """
     Read forest file and add other predictor variables to the resulting dataset
 
@@ -170,6 +173,11 @@ def add_timeseriesdata_to_forest_dataset(filepath, full_variable_list, forest_va
         List of variables to include (typically all predictor variables)
     forest_variables: list
         List of forest file variables
+    drop_data : list
+        Optional list of data columns to drop
+    rename_dict : dict
+        Optional dictionary of columns to rename and their target names as
+        values
 
     Returns
     -------
@@ -179,7 +187,6 @@ def add_timeseriesdata_to_forest_dataset(filepath, full_variable_list, forest_va
     """
     df_forest = take_forest_dataset_and_convert_to_pd(filepath, forest_variables)
     variables_missing = []
-    print(forest_variables)
     if "lat" not in df_forest.columns or "lon" not in df_forest.columns:
         df_forest = rename_lat_lon(df_forest)
     for variable in full_variable_list:
@@ -200,7 +207,7 @@ def add_timeseriesdata_to_forest_dataset(filepath, full_variable_list, forest_va
     if rename_dict is not None:
         df_forest.rename(columns=rename_dict, inplace=True)
 
-    df_forest["month"] =[timestamp.month for timestamp in df_forest["time"]]
+    df_forest["month"] = [timestamp.month for timestamp in df_forest["time"]]
     df_forest["year"] = [timestamp.year for timestamp in df_forest["time"]]
     df_forest_monvar = None
     for month, group in df_forest.groupby(by=["month"]):
@@ -210,14 +217,16 @@ def add_timeseriesdata_to_forest_dataset(filepath, full_variable_list, forest_va
                 fvariable = rename_dict[fvariable_orig]
             else:
                 fvariable = fvariable_orig
-            to_rework.rename(columns={fvariable:f"{fvariable}_{month[0]}"}, inplace=True)
+            to_rework.rename(
+                columns={fvariable: f"{fvariable}_{month[0]}"}, inplace=True
+            )
         to_rework.drop(columns=["time", "month"], inplace=True)
         if df_forest_monvar is None:
             df_forest_monvar = to_rework
         else:
-            df_forest_monvar = pd.merge(df_forest_monvar, to_rework, how="outer", on=["LON", "LAT", "year"])
-    #print(df_forest_monvar)
-    #sys.exit(4)
+            df_forest_monvar = pd.merge(
+                df_forest_monvar, to_rework, how="outer", on=["LON", "LAT", "year"]
+            )
     return df_forest_monvar
 
 
@@ -254,21 +263,20 @@ def make_full_grid(resolution_file="era5_land"):
         min_lon = 0
         num_lon = 3600
     else:
-        ds_grid = xr.open_dataset(resolution_file)
-        max_lat = ds_grid["lat"].max()
-        min_lat = ds_grid["lat"].min()
+        ds_grid = rename_lat_lon(xr.open_dataset(resolution_file))
+        max_lat = ds_grid["lat"].max().values
+        min_lat = ds_grid["lat"].min().values
         num_lat = len(ds_grid["lat"])
-        max_lon = ds_grid["lon"].max()
-        min_lon = ds_grid["lon"].min()
+        max_lon = ds_grid["lon"].max().values
+        min_lon = ds_grid["lon"].min().values
         num_lon = len(ds_grid["lon"])
-
     lats = np.linspace(min_lat, max_lat, num=num_lat)
     lons = np.linspace(min_lon, max_lon, num=num_lon)
     cross = [(A, B) for A in lats for B in lons]
     cross = np.array(cross)
     full_grid = pd.DataFrame({"lat": cross[:, 0], "lon": cross[:, 1]})
-    lat_round = int(np.ceil(np.log10(len(lats) - 1) / (lats[-1] - lats[0])))
-    lon_round = int(np.ceil(np.log10(len(lons) / (lons[-1] - lons[0]))))
+    lat_round = int(np.max((np.ceil(1 - np.log10((max_lat - min_lat) / num_lat)), 1)))
+    lon_round = int(np.max((np.ceil(1 - np.log10((max_lon - min_lon) / num_lon)), 1)))
     full_grid = full_grid.sort_values(by=["lat", "lon"])
     full_grid = full_grid.reset_index(drop=True).round(
         {"lat": lat_round, "lon": lon_round}
@@ -291,48 +299,86 @@ def rename_lat_lon(df_wrong):
     pd.DataFrame
         DataFrame with renamed lat and lon if suitable alternatives exist
     """
-    if "lat" not in df_wrong.columns:
-        for col in df_wrong.columns:
-            if col.lower() in ["lat", "lati", "latitude"]:
-                df_wrong.rename(columns={col: "lat"}, inplace=True)
-                break
-    if "lon" not in df_wrong.columns:
-        for col in df_wrong.columns:
-            if col.lower() in ["lon", "long", "longitude"]:
-                df_wrong.rename(columns={col: "lon"}, inplace=True)
-                break
+    if isinstance(df_wrong, pd.DataFrame):
+        if "lat" not in df_wrong.columns:
+            for col in df_wrong.columns:
+                if col.lower() in ["lat", "lati", "latitude"]:
+                    df_wrong.rename(columns={col: "lat"}, inplace=True)
+                    break
+        if "lon" not in df_wrong.columns:
+            for col in df_wrong.columns:
+                if col.lower() in ["lon", "long", "longitude"]:
+                    df_wrong.rename(columns={col: "lon"}, inplace=True)
+                    break
+    else:
+        if "lat" not in df_wrong.keys():
+            if "latitude" in df_wrong.keys():
+                df_wrong = df_wrong.rename({"latitude": "lat"})
+        if "lon" not in df_wrong.keys():
+            if "longitude" in df_wrong.keys():
+                df_wrong = df_wrong.rename({"longitude": "lon"})
+
     return df_wrong
 
-def merge_dfs_with_float_lat_lons(lat_round, lon_round, df_left, df_right, additional_on_merge=None, merge_how = 'left'):
+
+def merge_dfs_with_float_lat_lons(
+    lat_round, lon_round, df_left, df_right, additional_on_merge=None, merge_how="left"
+):  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    """
+    Merge DataFrames with floating point values for lat and lon
+
+    In order to merge lats and lons that are floats correctly
+    convertion to non-ambigous integers is necesseary, before merging
+    or pandas will not be able to merge the correct rows together.
+
+    Parameters
+    ----------
+    lat_round : int
+        Number of digits to preserve in latitudes
+    lon_round : int
+        Number of digits to preserve in longitudes
+    df_left : pd.dDataFrame
+        The left side DataFrame to merge
+    df_right : pd.dDataFrame
+        The right side DataFrame to merge
+    additional_on_merge : list
+        Optional list of additional variables to merge on like elevation or time
+        Default is None
+    merge_how : str
+        Keyword on how to merge the dataframes, default is left
+
+    Returns
+    -------
+        pd.DataFrame
+        Merged between the two dataframes
+    """
     df_left = rename_lat_lon(df_left)
     df_right = rename_lat_lon(df_right)
-    lat_factor = 10**(lat_round)
-    lon_factor = 10**(lon_round)
-    df_right["LAT_merge"] = np.round(df_right["lat"]*lat_factor).astype(int)
-    df_left["LAT_merge"] = np.round(df_left["lat"]*lat_factor).astype(int)
-    df_right["LON_merge"] = np.round(df_right["lon"]*lon_factor).astype(int)
-    df_left["LON_merge"] = np.round(df_left["lon"]*lon_factor).astype(int)
-    df_left.drop(columns=["lat", "lon"], inplace= True)
-    df_right.drop(columns=["lat", "lon"], inplace= True)
-    print(f"Shape of left: {df_left.shape} and shape of right: {df_right.shape}")
+    lat_factor = 10 ** (lat_round)
+    lon_factor = 10 ** (lon_round)
+    df_right["LAT_merge"] = np.round(df_right["lat"] * lat_factor).astype(int)
+    df_left["LAT_merge"] = np.round(df_left["lat"] * lat_factor).astype(int)
+    df_right["LON_merge"] = np.round(df_right["lon"] * lon_factor).astype(int)
+    df_left["LON_merge"] = np.round(df_left["lon"] * lon_factor).astype(int)
+    df_left.drop(columns=["lat", "lon"], inplace=True)
+    df_right.drop(columns=["lat", "lon"], inplace=True)
+    # print(f"Shape of left: {df_left.shape} and shape of right: {df_right.shape}")
     if additional_on_merge is None:
-        print("Just on lat and lon")
-        duplicates = df_right[df_right.duplicated(subset=["LAT_merge", "LON_merge"], keep=False)]
-        print(duplicates.shape)
-        print(df_right[(df_right["LAT_merge"] == 350) & (df_right["LON_merge"] == 0)]  )
+        # duplicates = df_right[df_right.duplicated(subset=["LAT_merge", "LON_merge"], keep=False)]
+        # print(duplicates.shape)
+        # print(df_right[(df_right["LAT_merge"] == 350) & (df_right["LON_merge"] == 0)]  )
         merged = pd.merge(
             df_left, df_right, how=merge_how, on=["LAT_merge", "LON_merge"]
         )
     else:
         onlist = ["LAT_merge", "LON_merge"] + additional_on_merge
-        merged = pd.merge(
-            df_left, df_right, how=merge_how, on=onlist
-        )
-    print(f"Finally merged befor dropping: {merged.shape}")
-    merged["lat"] = merged["LAT_merge"]/lat_factor
-    merged["lon"] = merged["LON_merge"]/lon_factor
+        merged = pd.merge(df_left, df_right, how=merge_how, on=onlist)
+    # print(f"Finally merged before dropping: {merged.shape}")
+    merged["lat"] = merged["LAT_merge"] / lat_factor
+    merged["lon"] = merged["LON_merge"] / lon_factor
     merged.drop(columns=["LAT_merge", "LON_merge"], inplace=True)
     return merged
+
 
 def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
     """
@@ -357,15 +403,19 @@ def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
     """
     full_grid, lat_round, lon_round, outlats, outlons = make_full_grid(resolution_file)
     df_sparse_w_index = rename_lat_lon(df_sparse).round(
-        #{"lat": lat_round, "lon": lon_round}
+        # {"lat": lat_round, "lon": lon_round}
         {"lat": lat_round, "lon": lon_round}
     )
-    data_onto_full_grid = pd.merge(
-        full_grid, df_sparse_w_index, how="inner", on=["lat", "lon"]
+    # print(df_sparse_w_index[df_sparse_w_index.duplicated(subset=['lat','lon'], keep=False)])
+    # print(f"Full grid shape: {full_grid.shape}, df_sparse_shape: {df_sparse_w_index.shape}")
+    # data_onto_full_grid = pd.merge(
+    #    full_grid, df_sparse_w_index, how="inner", on=["lat", "lon"]
+    # )
+    data_onto_full_grid = merge_dfs_with_float_lat_lons(
+        lat_round, lon_round, full_grid, df_sparse_w_index
     )
-    data_onto_full_grid = merge_dfs_with_float_lat_lons(lat_round, lon_round, full_grid, df_sparse_w_index)
-
-    #sys.exit(4)
+    # print(data_onto_full_grid.shape)
+    # sys.exit(4)
     variables = {}
     coords = {"lat": outlats, "lon": outlons}
     for col in data_onto_full_grid.columns:
@@ -383,42 +433,81 @@ def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
     data_ds = xr.Dataset(data_vars=variables, coords=coords)
     return data_ds.fillna(0)
 
-def add_static_data_to_tsdata(df_ts, df_static, ts_var = "year"):
+
+def add_static_data_to_tsdata(df_ts, df_static, ts_var="year"):
+    """
+    Add static data to a dataframe with timeseries data
+
+    Parameters
+    ----------
+    df_ts : pd.DataFrame
+        Dataframe with timeseries or timevolving data
+    df_static : pd.DataFrame
+        Dataframe with static data (i.e. elevation or possibly forest cover)
+    ts_var : str
+        Name of timeseries dimension, such as year, date, month etc...
+
+    Returns
+    -------
+        pd.DataFrame
+        Combined dataframe with duplicate static data for each step in the
+        timeseries
+    """
     df_ts = rename_lat_lon(df_ts)
     df_static = rename_lat_lon(df_static)
-    #sys.exit(4)
-    #print(df_static)
+    # sys.exit(4)
+    # print(df_static)
 
     list_concat = []
 
-    for tgroup, group in df_ts.groupby(by=[ts_var]):
-        print(f"{tgroup} with shape {group.shape}")
+    for tgroup, group in df_ts.groupby(by=[ts_var]):  # pylint: disable=unused-variable
+        # print(f"{tgroup} with shape {group.shape}")
         df_merge = merge_dfs_with_float_lat_lons(1, 1, group.copy(), df_static.copy())
-        print(f"Shape after the merge {df_merge.shape}")
+        # print(f"Shape after the merge {df_merge.shape}")
         list_concat.append(df_merge)
     df_full = pd.concat(list_concat)
-    print(df_full.shape)
-    #sys.exit(4)
+    # print(df_full.shape)
+    # sys.exit(4)
     return df_full
 
 
-
 def combine_forest_datasets(forest_datasets):
+    """
+    Combine multiple forest datasets, for instance files with different forest variables
 
+    Parameters
+    ----------
+    forest_datasets : list or dict
+        list of forest datasets as pd.Dataframes, or dict with
+        paths to files and with forest data as keys and a new
+        dictionaries as values, these dictionaries should
+        contain to three key-value pairs with keys
+        full_variable_list (with list of variables wanted from the
+        dataset and to possibly add from ERA5 or similar dataset),
+        forest_variables (with list of forest variables which should
+        be a subset of the full_variable_list) and
+        drop_data another list of columns that should be dropped from
+        the dataset after combining (such as bnds etc...)
+
+    Returns
+    -------
+    pd.DataFrame
+        Of combined data
+    """
     if isinstance(forest_datasets, dict):
         forest_dataset_list = []
         for data_path, arguments in forest_datasets.items():
             ds = add_variables_to_forest_dataset(
                 data_path,
                 full_variable_list=arguments["full_variable_list"],
-                forest_variables=arguments["forest_variables"]
+                forest_variables=arguments["forest_variables"],
             )
             print(ds)
             ds.drop(columns=arguments["drop_data"], inplace=True)
             forest_dataset_list.append(ds.copy())
     else:
         forest_dataset_list = forest_datasets
-    
+
     combined_dataset = None
     for ds in forest_dataset_list:
         print(ds)
@@ -426,6 +515,8 @@ def combine_forest_datasets(forest_datasets):
             combined_dataset = ds
         else:
             print("In else")
-            combined_dataset = merge_dfs_with_float_lat_lons(2, 2, combined_dataset, ds, merge_how='outer')
+            combined_dataset = merge_dfs_with_float_lat_lons(
+                2, 2, combined_dataset, ds, merge_how="outer"
+            )
 
     return combined_dataset

@@ -122,7 +122,7 @@ class MLMODELINTERFACE:
 
     def train_new_model_instance(
         self, Xtrain, ytrain, options=None, update_current=True, scale_x_dat=True
-    ):  # pylint: disable=too-many-arguments
+    ):  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """
         Train new model instance for regressor
 

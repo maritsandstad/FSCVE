@@ -83,8 +83,8 @@ def test_make_full_grid():
     assert test.shape == (1801 * 3600, 2)
     assert len(outlat) == 1801
     assert len(outlon) == 3600
-    assert round_lon == 2
-    assert round_lat == 1
+    assert round_lon == 3
+    assert round_lat == 3
     assert set(test.columns) == set(["lat", "lon"])
     # test = forest_data_handler.make_full_grid()
 

@@ -1,6 +1,7 @@
 """
 Functionality to sanity check, read and manipulate data for making forest emulation
 """
+
 import logging
 
 import numpy as np
@@ -96,8 +97,10 @@ def fill_zeros(result, data_base):
         zeros where there was no change in inputs
     """
     complete = result.copy()
-    # TODO: Is there a more efficient way to do this?
-    for index in data_base.index:
-        if index not in complete.index:
-            complete.loc[index] = np.zeros(len(complete.columns))
+    complete = pd.DataFrame(
+        data=np.zeros((len(data_base.index), len(result.columns))),
+        index=data_base.index,
+        columns=result.columns,
+    )
+    complete.loc[result.index] = result.values
     return complete

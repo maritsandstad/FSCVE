@@ -1,6 +1,7 @@
 """
 FSCVE the Forest Sensitive Climate Variable Emulator
 """
+
 import numpy as np
 import pandas as pd
 
@@ -68,7 +69,6 @@ class FSCVE:
         base_prediction = self._predict_from_variables(data_base_short)
         forest_prediction = self._predict_from_variables(data_forest_short)
         result = base_prediction - forest_prediction
-
         return fill_zeros(result, data_base)
 
     def _predict_from_variables(self, data):
