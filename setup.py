@@ -8,13 +8,11 @@ import versioneer
 PACKAGE_NAME = "fscve"
 AUTHORS = [
     ("Marit Sandstad", "marit.sandstad@cicero.oslo.no"),
-    ("Ragnhild Bieltvedt Skeie", "r.b.skeie@cicero.oslo.no"),
-    ("Ane Nordlie Johansen", "ane.nordlie.johansen@cicero.oslo.no"),
-    ("Benjamin Sanderson", "benjamin.sanderson@cicero.oslo.no"),
+    ("Erik Kusch", "erik.kusch@cicero.oslo.no"),
 ]
 URL = "https://github.com/ciceroOslo/fscve"
 
-DESCRIPTION = "Python version of the CICERO-SCM simple climate model"
+DESCRIPTION = "FSCVE - Forest Sensitive Climate Variable Emulator"
 README = "README.rst"
 
 SOURCE_DIR = "src"
@@ -126,7 +124,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
-    keywords=["cicero-scm", "cicero", "python", "repo", "simple", "climate", "model"],
+    keywords=["machine learning", "python", "repo", "forest", "climate", "emulator"],
     packages=PACKAGES,
     package_dir=PACKAGE_DIR,
     package_data=PACKAGE_DATA,
