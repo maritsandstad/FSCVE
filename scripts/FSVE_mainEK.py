@@ -37,8 +37,8 @@ y = training_data["mean"]
 # --------------------------------
 # Train ML model
 # --------------------------------
-ml_model = ml_modelling_infrastructure.MLMODELINTERFACE(RandomForestRegressor)
-#ml_model = ml_modelling_infrastructure.MLMODELINTERFACE(LinearRegression)
+#ml_model = ml_modelling_infrastructure.MLMODELINTERFACE(RandomForestRegressor)
+ml_model = ml_modelling_infrastructure.MLMODELINTERFACE(LinearRegression)
 ml_model.train_new_model_instance(X, y)
 #print(ml_model.evaluate_model(X,y))
 #sys.exit(4)
@@ -69,8 +69,8 @@ def apply_agb_change(df, change, var_to_change):
 # --------------------------------
 # Plotting helpers
 # --------------------------------
-def plot_diff_map(base_df, changed_df, change_short, change_long=None):
-    diff = emulator.predict_and_get_variable_diff(base_df, changed_df)
+def plot_diff_map(base_df, changed_df, change_short, change_long=None, plot_dir ="plots"):
+    diff = emulator.predict_and_get_variable_diff(base_df, changed_df, fill_val=np.nan)
     #print(diff)
     #sys.exit(4)
     # Prepare DataFrame for plotting
@@ -83,11 +83,13 @@ def plot_diff_map(base_df, changed_df, change_short, change_long=None):
     ##print(plot_df.head())
     #sys.exit(4)
     ds = forest_data_handler.make_sparse_forest_df_xarray(plot_df, resolution_file=resolution_file)
+    print(ds["mean_diff"].count())
+    print(ds["mean_diff"].shape)
     #print(ds.head())
     #print(f"complete mean: {ds['mean_diff'].values.mean()}, complete max: {ds['mean_diff'].values.max()},complete min: {ds['mean_diff'].values.min()}")
     #sys.exit(4)
     # Ensure the subdirectory exists
-    plot_dir = os.path.join(os.path.dirname(__file__), "plots")
+    plot_dir = os.path.join(os.path.dirname(__file__), plot_dir)
     os.makedirs(plot_dir, exist_ok=True)
 
     # Plot
@@ -105,7 +107,7 @@ def plot_diff_map(base_df, changed_df, change_short, change_long=None):
     ax.set_title(f"Predicted change in mean when {change_long or change_short}")
 
     # Save plot in the subdirectory
-    filename = f"prediction_change_{change_short}.png"
+    filename = f"prediction_change_{change_short}_linear.png"
     filepath = os.path.join(plot_dir, filename)
     plt.savefig(filepath)
     plt.clf()
@@ -152,11 +154,12 @@ map_data = map_data[["LATITUDE", "LONGITUDE", "ELEVATION", "AGB_ESA"]]
 
 predict_base_map = ml_model.predict_with_current(map_data)
 map_data["mean"] = predict_base_map
+plot_dir_name = f"plots/tra"
 plot_vanilla(map_data, "mean", "mean_prediction_base_map.png", plot_dir="plots")
 for change in ["halved", "doubled", "set_to_zero", "max_everywhere"]:
     changed_map = apply_agb_change(map_data, change, var_to_change="AGB_ESA")
     plot_vanilla(changed_map, "AGB_ESA",f"agb_{change}_map.png", plot_dir="plots")
     base_emul_df = prepare_emulator_df(map_data)
     changed_emul_df = prepare_emulator_df(changed_map)
-    plot_diff_map(base_emul_df, changed_emul_df, change, f"AGB_ESA is {change.replace('_', ' ')}")
+    plot_diff_map(base_emul_df, changed_emul_df, change, f"AGB_ESA is {change.replace('_', ' ')}")#, plot_dir="")
 

@@ -380,7 +380,7 @@ def merge_dfs_with_float_lat_lons(
     return merged
 
 
-def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
+def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land", fillna = False):
     """
     Make a sparse forest DataFrame into a fully filled in xarray
 
@@ -431,7 +431,7 @@ def make_sparse_forest_df_xarray(df_sparse, resolution_file="era5_land"):
         variables[col] = target_variable_xr
 
     data_ds = xr.Dataset(data_vars=variables, coords=coords)
-    return data_ds.fillna(0)
+    return data_ds#.fillna(0)
 
 
 def add_static_data_to_tsdata(df_ts, df_static, ts_var="year"):
