@@ -6,6 +6,8 @@ PATHFINDER has received funding from the European Union’s Horizon Europe Progr
 This output reflects only the authors’ view, and the European Union cannot be held 
 responsible for any use that may be made of the information contained herein.
 
+[![DOI](https://zenodo.org/badge/865974871.svg)](https://doi.org/10.5281/zenodo.17119598)
+
 
 ## Code
 
