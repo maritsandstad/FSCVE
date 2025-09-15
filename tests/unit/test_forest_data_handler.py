@@ -21,7 +21,7 @@ def test_take_forest_dataset_and_convert_to_pd(test_data_dir):
     print(test.head())
     print(test.index.nlevels)
     print(type(test))
-    assert set(test.columns) == set(["latitude", "longitude","time", "tvh"])
+    assert set(test.columns) == set(["latitude", "longitude", "time", "tvh"])
     assert test.index.nlevels == 1
     assert len(test.index) < 1e5
 
@@ -49,9 +49,7 @@ def test_add_variables_to_forest_dataset(test_data_dir):
         ["LAT", "LON", "ELEVATION", "TAVG", "tvh"],
         ["tvh"],
     )
-    assert set(test.columns) == set(
-        ["LAT", "LON", "ELEVATION", "TAVG", "time", "tvh"]
-    )
+    assert set(test.columns) == set(["LAT", "LON", "ELEVATION", "TAVG", "time", "tvh"])
 
 
 def test_make_sparse_forest_df_xarray():

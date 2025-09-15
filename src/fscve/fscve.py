@@ -45,7 +45,7 @@ class FSCVE:
         self.predictor_list = predictor_list
         self.variable_list = variable_list
 
-    def predict_and_get_variable_diff(self, data_base, data_forest_change, fill_val = 0):
+    def predict_and_get_variable_diff(self, data_base, data_forest_change, fill_val=0):
         """
         Predict and get the diff in prediction between base and forest_change
 
@@ -55,6 +55,9 @@ class FSCVE:
             Data presenting the base run forest configuration
         data_forest_change : pd.DataFrame
             Data presenting the run with forest change configuration
+        fill_val : float
+            Value to fill in for missing data. Default is 0, but np.nan can also
+            be a useful option
 
         Returns
         -------
@@ -69,7 +72,7 @@ class FSCVE:
         base_prediction = self._predict_from_variables(data_base_short)
         forest_prediction = self._predict_from_variables(data_forest_short)
         result = forest_prediction - base_prediction
-        return fill_zeros(result, data_base, fill_val = fill_val)
+        return fill_zeros(result, data_base, fill_val=fill_val)
 
     def _predict_from_variables(self, data):
         """

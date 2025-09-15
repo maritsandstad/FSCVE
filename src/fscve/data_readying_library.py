@@ -78,7 +78,7 @@ def cut_data_points_where_all_equal(data_base, data_forest_change):
     return data_base.loc[diff.index], data_forest_change.loc[diff.index]
 
 
-def fill_zeros(result, data_base, fill_val = 0):
+def fill_zeros(result, data_base, fill_val=0):
     """
     Fill in zeros for points with no change in input data, hence diff will
     be zero, and no prediction has been explicitly made
@@ -89,6 +89,9 @@ def fill_zeros(result, data_base, fill_val = 0):
         Containing predictions for the diff points
     data_base : pd.DataFrame
         DataFrame from a forest base run for predictions
+    fill_val : float
+        Value to fill in for datapoints where no change occured
+        Default is 0
 
     Returns
     -------
