@@ -1,6 +1,7 @@
 """
 Functionality to sanity check, read and manipulate data for making forest emulation
 """
+
 import logging
 
 import numpy as np
@@ -77,7 +78,7 @@ def cut_data_points_where_all_equal(data_base, data_forest_change):
     return data_base.loc[diff.index], data_forest_change.loc[diff.index]
 
 
-def fill_zeros(result, data_base):
+def fill_zeros(result, data_base, fill_val=0):
     """
     Fill in zeros for points with no change in input data, hence diff will
     be zero, and no prediction has been explicitly made
@@ -88,6 +89,9 @@ def fill_zeros(result, data_base):
         Containing predictions for the diff points
     data_base : pd.DataFrame
         DataFrame from a forest base run for predictions
+    fill_val : float
+        Value to fill in for datapoints where no change occured
+        Default is 0
 
     Returns
     -------
@@ -96,8 +100,10 @@ def fill_zeros(result, data_base):
         zeros where there was no change in inputs
     """
     complete = result.copy()
-    # TODO: Is there a more efficient way to do this?
-    for index in data_base.index:
-        if index not in complete.index:
-            complete.loc[index] = np.zeros(len(complete.columns))
+    complete = pd.DataFrame(
+        data=np.ones((len(data_base.index), len(result.columns))) * fill_val,
+        index=data_base.index,
+        columns=result.columns,
+    )
+    complete.loc[result.index] = result.values
     return complete
